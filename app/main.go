@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"strconv"
 	"strings"
 )
 
@@ -41,38 +42,61 @@ func main() {
 	}
 }
 
-var (
-	notFound   string = "HTTP/1.1 404 Not Found\r\n\r\n"
+const (
+	notFound   string = "HTTP/1.1 404 Not Found"
 	okResponse string = "HTTP/1.1 200 OK"
-)
 
-var echoPrefix string = "GET /echo/"
+	echoPrefix      string = "GET /echo/"
+	userAgentPrefix string = "GET /user-agent"
+	userAgentHeader string = "User-Agent: "
+
+	CRLF string = "\r\n"
+
+	textContentType string = "text/plain"
+)
 
 func getResponse(conn net.Conn) (string, error) {
 
 	req := make([]byte, 1024)
-	_, err := conn.Read(req)
+	n, err := conn.Read(req)
 	if err != nil {
 		return "", err
 	}
 
-	s := string(req)
+	s := string(req[:n])
 
-	resp := fmt.Sprintf("%v\r\n\r\n", okResponse)
-	if !strings.HasPrefix(s, "GET / HTTP/1.1") && !strings.HasPrefix(s, "GET /echo/") {
-		return notFound, nil
-	}
+	resp := fmt.Sprintf("%v%v%v", okResponse, CRLF, CRLF)
 
 	if strings.HasPrefix(s, echoPrefix) {
 		stringRequest := strings.Split(strings.TrimPrefix(s, echoPrefix), " ")[0]
-		resp = fmt.Sprintf(
-			"%v\r\nContent-Type: text/plain\r\nContent-Length: %v\r\n\r\n%v",
-			okResponse,
-			len(stringRequest),
-			stringRequest,
-		)
+		return getOkResponse(textContentType, strconv.Itoa(len(stringRequest)), stringRequest), nil
+	}
+	if strings.HasPrefix(s, userAgentPrefix) {
+		i := strings.Index(s, userAgentHeader)
+		if i == -1 {
+			return getOkResponse(textContentType, "0", ""), nil
+		}
+		userAgent := strings.Split(strings.TrimPrefix(s[i:], userAgentHeader), CRLF)[0]
+		return getOkResponse(textContentType, strconv.Itoa(len(userAgent)), userAgent), nil
+	}
 
+	if !strings.HasPrefix(s, "GET / HTTP/1.1") {
+		return notFound + CRLF + CRLF, nil
 	}
 
 	return resp, nil
+}
+
+func getOkResponse(contentType, contentLength, content string) string {
+	return fmt.Sprintf(
+		"%v%vContent-Type: %v%vContent-Length: %v%v%v%v",
+		okResponse,
+		CRLF,
+		contentType,
+		CRLF,
+		contentLength,
+		CRLF,
+		CRLF,
+		content,
+	)
 }
