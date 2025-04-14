@@ -30,13 +30,15 @@ func main() {
 			os.Exit(1)
 		}
 
-		resp, err := getResponse(conn)
-		if err != nil {
-			panic("FDSJKFH")
-		}
+		go func() {
+			resp, err := getResponse(conn)
+			if err != nil {
+				panic("FDSJKFH")
+			}
 
-		conn.Write([]byte(resp))
-		conn.Close()
+			conn.Write([]byte(resp))
+			conn.Close()
+		}()
 
 	}
 }
