@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"strconv"
 	"strings"
 )
 
@@ -69,15 +68,15 @@ func getResponse(conn net.Conn) (string, error) {
 
 	if strings.HasPrefix(s, echoPrefix) {
 		stringRequest := strings.Split(strings.TrimPrefix(s, echoPrefix), " ")[0]
-		return getOkResponse(textContentType, strconv.Itoa(len(stringRequest)), stringRequest), nil
+		return getOkResponse(textContentType, len(stringRequest), stringRequest), nil
 	}
 	if strings.HasPrefix(s, userAgentPrefix) {
 		i := strings.Index(s, userAgentHeader)
 		if i == -1 {
-			return getOkResponse(textContentType, "0", ""), nil
+			return getOkResponse(textContentType, 0, ""), nil
 		}
 		userAgent := strings.Split(strings.TrimPrefix(s[i:], userAgentHeader), CRLF)[0]
-		return getOkResponse(textContentType, strconv.Itoa(len(userAgent)), userAgent), nil
+		return getOkResponse(textContentType, len(userAgent), userAgent), nil
 	}
 
 	if !strings.HasPrefix(s, "GET / HTTP/1.1") {
@@ -87,9 +86,9 @@ func getResponse(conn net.Conn) (string, error) {
 	return resp, nil
 }
 
-func getOkResponse(contentType, contentLength, content string) string {
+func getOkResponse(contentType string, contentLength int, content string) string {
 	return fmt.Sprintf(
-		"%v%vContent-Type: %v%vContent-Length: %v%v%v%v",
+		"%v%vContent-Type: %v%vContent-Length: %d%v%v%v",
 		okResponse,
 		CRLF,
 		contentType,
