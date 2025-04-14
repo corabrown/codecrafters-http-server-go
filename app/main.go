@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
 	"net"
 	"os"
@@ -31,35 +30,49 @@ func main() {
 			os.Exit(1)
 		}
 
-		reader := bufio.NewReader(conn)
-
-		s, err := reader.ReadString('\n')
+		resp, err := getResponse(conn)
 		if err != nil {
-			panic("ahhhh")
+			panic("FDSJKFH")
 		}
 
-		requestComponents := strings.Split(s, " ")
-
-		var resp response
-		if len(requestComponents) < 2 {
-			resp = notFound
-		} else {
-			if requestComponents[1] == "/" {
-				resp = okResponse
-			} else {
-				resp = notFound
-			}
-		}
-
-		conn.Write(resp)
+		conn.Write([]byte(resp))
 		conn.Close()
 
 	}
 }
 
-type response []byte
-
 var (
-	notFound   response = []byte("HTTP/1.1 404 Not Found\r\n\r\n")
-	okResponse response = []byte("HTTP/1.1 200 OK\r\n\r\n")
+	notFound   string = "HTTP/1.1 404 Not Found\r\n\r\n"
+	okResponse string = "HTTP/1.1 200 OK"
 )
+
+var echoPrefix string = "GET /echo/"
+
+func getResponse(conn net.Conn) (string, error) {
+
+	req := make([]byte, 1024)
+	_, err := conn.Read(req)
+	if err != nil {
+		return "", err
+	}
+
+	s := string(req)
+
+	resp := fmt.Sprintf("%v\r\n\r\n", okResponse)
+	if !strings.HasPrefix(s, "GET / HTTP/1.1") && !strings.HasPrefix(s, "GET /echo/") {
+		return notFound, nil
+	}
+
+	if strings.HasPrefix(s, echoPrefix) {
+		stringRequest := strings.Split(strings.TrimPrefix(s, echoPrefix), " ")[0]
+		resp = fmt.Sprintf(
+			"%v\r\nContent-Type: text/plain\r\nContent-Length: %v\r\n\r\n%v",
+			okResponse,
+			len(stringRequest),
+			stringRequest,
+		)
+
+	}
+
+	return resp, nil
+}
