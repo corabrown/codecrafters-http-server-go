@@ -61,7 +61,7 @@ const (
 
 	userAgentHeader     string = "User-Agent: "
 	contentTypeHeader   string = "Content-Type: "
-	contentLengthHeader string = "Content-Length"
+	contentLengthHeader string = "Content-Length: "
 
 	CRLF string = "\r\n"
 
