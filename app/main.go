@@ -22,6 +22,7 @@ func main() {
 	if directoryPtr != nil {
 		baseDirectory = *directoryPtr
 	}
+	fmt.Println(baseDirectory)
 
 	// Uncomment this block to pass the first stage
 
