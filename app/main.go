@@ -14,7 +14,6 @@ var _ = net.Listen
 var _ = os.Exit
 
 func main() {
-	// You can use print statements as follows for debugging, they'll be visible when running tests.
 	fmt.Println("Logs from your program will appear here!")
 
 	directoryPtr := flag.String("directory", "/tmp", "the directory for files")
@@ -23,8 +22,6 @@ func main() {
 	if directoryPtr != nil {
 		baseDirectory = *directoryPtr
 	}
-
-	// Uncomment this block to pass the first stage
 
 	l, err := net.Listen("tcp", "0.0.0.0:4221")
 	if err != nil {
@@ -42,7 +39,7 @@ func main() {
 		go func() {
 			resp, err := getResponse(conn, baseDirectory)
 			if err != nil {
-				panic("FDSJKFH")
+				panic("unable to get a response")
 			}
 
 			conn.Write([]byte(resp))
@@ -55,7 +52,7 @@ func main() {
 const (
 	notFound       string = "HTTP/1.1 404 Not Found"
 	okGetResponse  string = "HTTP/1.1 200 OK"
-	okPostResponse string = "HTTP/1.1 201 OK"
+	okPostResponse string = "HTTP/1.1 201 Created"
 
 	echoPrefix      string = "GET /echo/"
 	userAgentPrefix string = "GET /user-agent"
