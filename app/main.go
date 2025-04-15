@@ -1,9 +1,11 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"net"
 	"os"
+	"path/filepath"
 	"strings"
 )
 
@@ -14,6 +16,12 @@ var _ = os.Exit
 func main() {
 	// You can use print statements as follows for debugging, they'll be visible when running tests.
 	fmt.Println("Logs from your program will appear here!")
+
+	directoryPtr := flag.String("directory", "/tmp", "the directory for files")
+	var baseDirectory string
+	if directoryPtr != nil {
+		baseDirectory = *directoryPtr
+	}
 
 	// Uncomment this block to pass the first stage
 
@@ -31,7 +39,7 @@ func main() {
 		}
 
 		go func() {
-			resp, err := getResponse(conn)
+			resp, err := getResponse(conn, baseDirectory)
 			if err != nil {
 				panic("FDSJKFH")
 			}
@@ -49,14 +57,16 @@ const (
 
 	echoPrefix      string = "GET /echo/"
 	userAgentPrefix string = "GET /user-agent"
+	filePrefix      string = "GET /files/"
 	userAgentHeader string = "User-Agent: "
 
 	CRLF string = "\r\n"
 
 	textContentType string = "text/plain"
+	octetStreamType string = "application/octet-stream"
 )
 
-func getResponse(conn net.Conn) (string, error) {
+func getResponse(conn net.Conn, baseDirectory string) (string, error) {
 
 	req := make([]byte, 1024)
 	n, err := conn.Read(req)
@@ -79,6 +89,21 @@ func getResponse(conn net.Conn) (string, error) {
 		}
 		userAgent := strings.Split(strings.TrimPrefix(s[i:], userAgentHeader), CRLF)[0]
 		return getOkResponse(textContentType, len(userAgent), userAgent), nil
+	}
+	if strings.HasPrefix(s, filePrefix) {
+		filename := strings.Split(strings.TrimPrefix(s, filePrefix), " ")[0]
+
+		fullPath := filepath.Join(baseDirectory, filename)
+
+		fileInfo, err := os.Stat(fullPath)
+		if err != nil {
+			return notFound + CRLF + CRLF, nil
+		}
+		content, err := os.ReadFile(fullPath)
+		if err != nil {
+			return notFound + CRLF + CRLF, nil
+		}
+		return getOkResponse(octetStreamType, int(fileInfo.Size()), string(content)), nil
 	}
 
 	if !strings.HasPrefix(s, "GET / HTTP/1.1") {
