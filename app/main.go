@@ -128,7 +128,7 @@ func getResponse(conn net.Conn, baseDirectory string) (string, error) {
 			return getNotOkResponse(), nil
 		}
 
-		return getEmptyOkResponse(), nil
+		return getOkPostResponse(), nil
 	}
 
 	if !strings.HasPrefix(s, "GET / HTTP/1.1") {
