@@ -18,6 +18,7 @@ func main() {
 	fmt.Println("Logs from your program will appear here!")
 
 	directoryPtr := flag.String("directory", "/tmp", "the directory for files")
+	flag.Parse()
 	var baseDirectory string
 	if directoryPtr != nil {
 		baseDirectory = *directoryPtr
