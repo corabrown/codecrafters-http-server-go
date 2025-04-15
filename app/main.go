@@ -53,8 +53,9 @@ func main() {
 }
 
 const (
-	notFound   string = "HTTP/1.1 404 Not Found"
-	okResponse string = "HTTP/1.1 200 OK"
+	notFound       string = "HTTP/1.1 404 Not Found"
+	okGetResponse  string = "HTTP/1.1 200 OK"
+	okPostResponse string = "HTTP/1.1 201 OK"
 
 	echoPrefix      string = "GET /echo/"
 	userAgentPrefix string = "GET /user-agent"
@@ -81,7 +82,7 @@ func getResponse(conn net.Conn, baseDirectory string) (string, error) {
 
 	s := string(req[:n])
 
-	resp := fmt.Sprintf("%v%v%v", okResponse, CRLF, CRLF)
+	resp := fmt.Sprintf("%v%v%v", okGetResponse, CRLF, CRLF)
 
 	if strings.HasPrefix(s, echoPrefix) {
 		stringRequest := strings.Split(strings.TrimPrefix(s, echoPrefix), " ")[0]
@@ -140,7 +141,7 @@ func getResponse(conn net.Conn, baseDirectory string) (string, error) {
 func getOkResponse(contentType string, contentLength int, content string) string {
 	return fmt.Sprintf(
 		"%v%v%v%v%v%v%d%v%v%v",
-		okResponse,
+		okGetResponse,
 		CRLF,
 		contentTypeHeader,
 		contentType,
@@ -153,8 +154,8 @@ func getOkResponse(contentType string, contentLength int, content string) string
 	)
 }
 
-func getEmptyOkResponse() string {
-	return okResponse + CRLF + CRLF
+func getOkPostResponse() string {
+	return okPostResponse + CRLF + CRLF
 }
 
 func getNotOkResponse() string {
