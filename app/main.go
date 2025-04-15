@@ -23,7 +23,6 @@ func main() {
 	if directoryPtr != nil {
 		baseDirectory = *directoryPtr
 	}
-	fmt.Println(baseDirectory)
 
 	// Uncomment this block to pass the first stage
 
@@ -59,8 +58,12 @@ const (
 
 	echoPrefix      string = "GET /echo/"
 	userAgentPrefix string = "GET /user-agent"
-	filePrefix      string = "GET /files/"
-	userAgentHeader string = "User-Agent: "
+	getFilePrefix   string = "GET /files/"
+	postFilePrefix  string = "POST /files/"
+
+	userAgentHeader     string = "User-Agent: "
+	contentTypeHeader   string = "Content-Type: "
+	contentLengthHeader string = "Content-Length"
 
 	CRLF string = "\r\n"
 
@@ -85,31 +88,50 @@ func getResponse(conn net.Conn, baseDirectory string) (string, error) {
 		return getOkResponse(textContentType, len(stringRequest), stringRequest), nil
 	}
 	if strings.HasPrefix(s, userAgentPrefix) {
-		i := strings.Index(s, userAgentHeader)
-		if i == -1 {
-			return getOkResponse(textContentType, 0, ""), nil
+		userAgent, ok := getHeaderValue(s, userAgentHeader)
+		if !ok {
+			return getNotOkResponse(), nil
 		}
-		userAgent := strings.Split(strings.TrimPrefix(s[i:], userAgentHeader), CRLF)[0]
 		return getOkResponse(textContentType, len(userAgent), userAgent), nil
 	}
-	if strings.HasPrefix(s, filePrefix) {
-		filename := strings.Split(strings.TrimPrefix(s, filePrefix), " ")[0]
+	if strings.HasPrefix(s, getFilePrefix) {
+		filename := strings.Split(strings.TrimPrefix(s, getFilePrefix), " ")[0]
 
 		fullPath := filepath.Join(baseDirectory, filename)
 
 		fileInfo, err := os.Stat(fullPath)
 		if err != nil {
-			return notFound + CRLF + CRLF, nil
+			return getNotOkResponse(), nil
 		}
 		content, err := os.ReadFile(fullPath)
 		if err != nil {
-			return notFound + CRLF + CRLF, nil
+			return getNotOkResponse(), nil
 		}
 		return getOkResponse(octetStreamType, int(fileInfo.Size()), string(content)), nil
 	}
+	if strings.HasPrefix(s, postFilePrefix) {
+		filename := strings.Split(strings.TrimPrefix(s, postFilePrefix), " ")[0]
+
+		contentType, ok := getHeaderValue(s, contentTypeHeader)
+		if !ok || (contentType != octetStreamType) {
+			return getNotOkResponse(), nil
+		}
+
+		components := strings.Split(s, CRLF)
+		content := components[len(components)-1]
+
+		filePath := filepath.Join(baseDirectory, filename)
+
+		err := os.WriteFile(filePath, []byte(content), 0644)
+		if err != nil {
+			return getNotOkResponse(), nil
+		}
+
+		return getEmptyOkResponse(), nil
+	}
 
 	if !strings.HasPrefix(s, "GET / HTTP/1.1") {
-		return notFound + CRLF + CRLF, nil
+		return getNotOkResponse(), nil
 	}
 
 	return resp, nil
@@ -117,14 +139,32 @@ func getResponse(conn net.Conn, baseDirectory string) (string, error) {
 
 func getOkResponse(contentType string, contentLength int, content string) string {
 	return fmt.Sprintf(
-		"%v%vContent-Type: %v%vContent-Length: %d%v%v%v",
+		"%v%v%v%v%v%v%d%v%v%v",
 		okResponse,
 		CRLF,
+		contentTypeHeader,
 		contentType,
 		CRLF,
+		contentLengthHeader,
 		contentLength,
 		CRLF,
 		CRLF,
 		content,
 	)
+}
+
+func getEmptyOkResponse() string {
+	return okResponse + CRLF + CRLF
+}
+
+func getNotOkResponse() string {
+	return notFound + CRLF + CRLF
+}
+
+func getHeaderValue(requestString, header string) (value string, ok bool) {
+	i := strings.Index(requestString, header)
+	if i == -1 {
+		return "", false
+	}
+	return strings.Split(strings.TrimPrefix(requestString[i:], header), CRLF)[0], true
 }
