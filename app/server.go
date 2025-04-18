@@ -50,7 +50,7 @@ func parseRequest(conn net.Conn) (request, error) {
 	}
 	req.requestTarget = strings.Split(strings.TrimPrefix(s, string(req.endpoint)), " ")[0]
 
-	for _, component := range requestComponents[1:] {
+	for _, component := range mainRequest[1:] {
 		headerPair := strings.Split(component, ": ")
 		if len(headerPair) == 2 {
 			header, value := headerPair[0], headerPair[1]
