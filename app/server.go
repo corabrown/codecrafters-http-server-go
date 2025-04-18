@@ -162,6 +162,7 @@ func getResponse(conn net.Conn, baseDirectory string) (httpResponse, error) {
 
 				resp.body = buf.String()
 				resp.contentLength = len(resp.body)
+				resp.contentEncoding = "gzip"
 			}
 		}
 		return resp, nil
