@@ -93,7 +93,7 @@ func (v httpResponse) format() string {
 		contentTypeHeader:     v.contentType,
 		contentLengthHeader:   strconv.Itoa(v.contentLength),
 		contentEncodingHeader: v.contentEncoding,
-		connectionHeader: v.connection,
+		connectionHeader:      v.connection,
 	}
 
 	if v.resp == "" {
@@ -144,7 +144,11 @@ func getResponse(conn net.Conn, baseDirectory string) (httpResponse, error) {
 
 	req, err := parseRequest(conn)
 	if err != nil {
-		return httpResponse{resp: notFound, connection: req.connection}, nil
+		return httpResponse{resp: notFound}, nil
+	}
+
+	result := httpResponse{
+		connection: req.connection,
 	}
 
 	switch req.endpoint {
@@ -160,10 +164,10 @@ func getResponse(conn net.Conn, baseDirectory string) (httpResponse, error) {
 				var buf bytes.Buffer
 				writer := gzip.NewWriter(&buf)
 				if _, err := writer.Write([]byte(resp.body)); err != nil {
-					return httpResponse{resp: notFound}, nil
+					result.resp = notFound
 				}
 				if err := writer.Close(); err != nil {
-					return httpResponse{resp: notFound}, nil
+					result.resp = notFound
 				}
 
 				resp.body = buf.String()
@@ -173,49 +177,44 @@ func getResponse(conn net.Conn, baseDirectory string) (httpResponse, error) {
 		}
 		return resp, nil
 	case userAgentEndpoint:
-		return httpResponse{
-			resp:          okGetResponse,
-			contentType:   textContentType,
-			contentLength: len(req.userAgent),
-			body:          req.userAgent,
-		}, nil
+		result.resp = okGetResponse
+		result.contentType = textContentType
+		result.contentLength = len(req.userAgent)
+		result.body = req.userAgent
 	case getFileEndpoint:
 		filename := req.requestTarget
 		fullPath := filepath.Join(baseDirectory, filename)
 
 		fileInfo, err := os.Stat(fullPath)
 		if err != nil {
-			return httpResponse{resp: notFound}, nil
+			result.resp = notFound
 		}
 		content, err := os.ReadFile(fullPath)
 		if err != nil {
-			return httpResponse{resp: notFound}, nil
+			result.resp = notFound
 		}
-
-		return httpResponse{
-			resp:          okGetResponse,
-			contentType:   octetStreamType,
-			contentLength: int(fileInfo.Size()),
-			body:          string(content),
-		}, nil
+		result.resp = okGetResponse
+		result.contentType = octetStreamType
+		result.contentLength = int(fileInfo.Size())
+		result.body = string(content)
 	case postFileEndpoint:
 		filename := req.requestTarget
 
 		if req.contentType != octetStreamType {
-			return httpResponse{}, nil
+			result.resp = notFound
 		}
 
 		filePath := filepath.Join(baseDirectory, filename)
 
 		err := os.WriteFile(filePath, []byte(req.body), 0644)
 		if err != nil {
-			return httpResponse{resp: notFound}, nil
+			result.resp = notFound
 		}
 
-		return httpResponse{resp: okPostResponse}, nil
+		result.resp = okPostResponse
 
 	case baseEndpoint:
-		return httpResponse{resp: okGetResponse}, nil
+		result.resp = okGetResponse
 	}
 
 	return httpResponse{}, nil
