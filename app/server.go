@@ -145,8 +145,8 @@ func getResponse(conn net.Conn, baseDirectory string) (httpResponse, error) {
 		resp := httpResponse{
 			resp:          okGetResponse,
 			contentType:   textContentType,
-			contentLength: len(req.body),
-			body:          req.body,
+			contentLength: len(req.requestTarget),
+			body:          req.requestTarget,
 		}
 		for _, compressionType := range req.encodingTypes {
 			if compressionType == "gzip" {
@@ -172,7 +172,7 @@ func getResponse(conn net.Conn, baseDirectory string) (httpResponse, error) {
 			body:          req.userAgent,
 		}, nil
 	case getFileEndpoint:
-		filename := req.body
+		filename := req.requestTarget
 		fullPath := filepath.Join(baseDirectory, filename)
 
 		fileInfo, err := os.Stat(fullPath)
