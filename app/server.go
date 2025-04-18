@@ -140,16 +140,14 @@ const (
 	octetStreamType string = "application/octet-stream"
 )
 
-func getResponse(conn net.Conn, baseDirectory string) (httpResponse, error) {
+func getResponse(conn net.Conn, baseDirectory string) (result httpResponse, err error) {
 
 	req, err := parseRequest(conn)
 	if err != nil {
 		return httpResponse{resp: notFound}, nil
 	}
 
-	result := httpResponse{
-		connection: req.connection,
-	}
+	result.connection = req.connection
 
 	switch req.endpoint {
 	case echoEndpoint:
@@ -181,6 +179,7 @@ func getResponse(conn net.Conn, baseDirectory string) (httpResponse, error) {
 		result.contentType = textContentType
 		result.contentLength = len(req.userAgent)
 		result.body = req.userAgent
+		return result, nil
 	case getFileEndpoint:
 		filename := req.requestTarget
 		fullPath := filepath.Join(baseDirectory, filename)
@@ -188,20 +187,25 @@ func getResponse(conn net.Conn, baseDirectory string) (httpResponse, error) {
 		fileInfo, err := os.Stat(fullPath)
 		if err != nil {
 			result.resp = notFound
+			return result, nil
 		}
 		content, err := os.ReadFile(fullPath)
 		if err != nil {
 			result.resp = notFound
+			return result, nil
 		}
 		result.resp = okGetResponse
 		result.contentType = octetStreamType
 		result.contentLength = int(fileInfo.Size())
 		result.body = string(content)
+		return result, nil
+
 	case postFileEndpoint:
 		filename := req.requestTarget
 
 		if req.contentType != octetStreamType {
 			result.resp = notFound
+			return result, nil
 		}
 
 		filePath := filepath.Join(baseDirectory, filename)
@@ -209,12 +213,16 @@ func getResponse(conn net.Conn, baseDirectory string) (httpResponse, error) {
 		err := os.WriteFile(filePath, []byte(req.body), 0644)
 		if err != nil {
 			result.resp = notFound
+			return result, nil
 		}
 
 		result.resp = okPostResponse
+		return result, nil
 
 	case baseEndpoint:
 		result.resp = okGetResponse
+		return result, nil
+
 	}
 
 	return result, nil
