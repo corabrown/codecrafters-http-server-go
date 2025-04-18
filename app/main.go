@@ -83,9 +83,6 @@ func getResponse(conn net.Conn, baseDirectory string) (httpResponse, error) {
 	}
 
 	s := string(req[:n])
-
-	fmt.Println(s)
-
 	resp := httpResponse{resp: okGetResponse}
 
 	if strings.HasPrefix(s, echoPrefix) {
@@ -156,7 +153,7 @@ func getResponse(conn net.Conn, baseDirectory string) (httpResponse, error) {
 	}
 
 	if !strings.HasPrefix(s, "GET / HTTP/1.1") {
-		return httpResponse{resp: okGetResponse}, nil
+		return httpResponse{resp: notFound}, nil
 	}
 
 	return resp, nil
