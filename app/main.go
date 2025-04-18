@@ -10,10 +10,6 @@ import (
 	"strings"
 )
 
-// Ensures gofmt doesn't remove the "net" and "os" imports above (feel free to remove this!)
-var _ = net.Listen
-var _ = os.Exit
-
 func main() {
 	fmt.Println("Logs from your program will appear here!")
 
@@ -93,8 +89,15 @@ func getResponse(conn net.Conn, baseDirectory string) (httpResponse, error) {
 			contentLength: len(stringRequest),
 			body:          stringRequest,
 		}
-		if contentType, ok := getHeaderValue(s, acceptEncodingHeader); ok && (contentType == "gzip") {
-			resp.contentEncoding = "gzip"
+		if contentTypes, ok := getHeaderValue(s, acceptEncodingHeader); ok {
+			compressionTypes := strings.Split(contentTypes, ",")
+			for _, compressionType := range compressionTypes {
+				textOnly := strings.ReplaceAll(compressionType, " ", "")
+				if textOnly == "gzip" {
+					resp.contentEncoding = "gzip"
+				}
+			}
+
 		}
 		return resp, nil
 	}
