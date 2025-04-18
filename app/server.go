@@ -97,8 +97,6 @@ func parseRequest(conn net.Conn) (request, error) {
 		}
 	}
 
-	fmt.Println("PRINTING ENDPOINT ", req.endpoint)
-
 	return req, nil
 }
 
