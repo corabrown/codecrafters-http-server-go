@@ -101,18 +101,17 @@ func getResponse(conn net.Conn, baseDirectory string) (httpResponse, error) {
 					cmd.Stdin = strings.NewReader(resp.body)
 
 					output, _ := cmd.CombinedOutput()
-					// fmt.Printf("%x\n", output)
 
-					// var response strings.Builder
-					// for i, b := range output {
-					// 	response.WriteString(fmt.Sprintf("%02X", b))
-					// 	if i < len(output)-1 {
-					// 		response.WriteString(" ")
-					// 	}
-					// }
-					// resp.body = response.String()
-					resp.body = fmt.Sprintf("%x", output)
-					// fmt.Println(resp.body)
+					var response strings.Builder
+					for i, b := range output {
+						response.WriteString(fmt.Sprintf("%02X", b))
+						if i < len(output)-1 {
+							response.WriteString(" ")
+						}
+					}
+					resp.body = response.String()
+					resp.contentLength = len(output)
+					resp.contentLength = 10
 					resp.contentLength = len(output)
 				}
 			}
