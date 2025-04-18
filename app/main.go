@@ -43,7 +43,7 @@ func main() {
 				panic("unable to get a response")
 			}
 
-			conn.Write([]byte(resp))
+			conn.Write([]byte(resp.format()))
 			conn.Close()
 		}()
 
@@ -74,17 +74,19 @@ const (
 	octetStreamType string = "application/octet-stream"
 )
 
-func getResponse(conn net.Conn, baseDirectory string) (string, error) {
+func getResponse(conn net.Conn, baseDirectory string) (httpResponse, error) {
 
 	req := make([]byte, 1024)
 	n, err := conn.Read(req)
 	if err != nil {
-		return "", err
+		return httpResponse{}, err
 	}
 
 	s := string(req[:n])
 
-	resp := fmt.Sprintf("%v%v%v", okGetResponse, CRLF, CRLF)
+	fmt.Println(s)
+
+	resp := httpResponse{resp: okGetResponse}
 
 	if strings.HasPrefix(s, echoPrefix) {
 		stringRequest := strings.Split(strings.TrimPrefix(s, echoPrefix), " ")[0]
@@ -97,19 +99,19 @@ func getResponse(conn net.Conn, baseDirectory string) (string, error) {
 		if contentType, ok := getHeaderValue(s, acceptEncodingHeader); ok && (contentType == "gzip") {
 			resp.contentEncoding = "gzip"
 		}
-		return resp.format(), nil
+		return resp, nil
 	}
 	if strings.HasPrefix(s, userAgentPrefix) {
 		userAgent, ok := getHeaderValue(s, userAgentHeader)
 		if !ok {
-			return httpResponse{resp: notFound}.format(), nil
+			return httpResponse{resp: notFound}, nil
 		}
 		return httpResponse{
 			resp:          okGetResponse,
 			contentType:   textContentType,
 			contentLength: len(userAgent),
 			body:          userAgent,
-		}.format(), nil
+		}, nil
 	}
 	if strings.HasPrefix(s, getFilePrefix) {
 		filename := strings.Split(strings.TrimPrefix(s, getFilePrefix), " ")[0]
@@ -118,11 +120,11 @@ func getResponse(conn net.Conn, baseDirectory string) (string, error) {
 
 		fileInfo, err := os.Stat(fullPath)
 		if err != nil {
-			return httpResponse{resp: notFound}.format(), nil
+			return httpResponse{resp: notFound}, nil
 		}
 		content, err := os.ReadFile(fullPath)
 		if err != nil {
-			return httpResponse{resp: notFound}.format(), nil
+			return httpResponse{resp: notFound}, nil
 		}
 
 		return httpResponse{
@@ -130,14 +132,14 @@ func getResponse(conn net.Conn, baseDirectory string) (string, error) {
 			contentType:   octetStreamType,
 			contentLength: int(fileInfo.Size()),
 			body:          string(content),
-		}.format(), nil
+		}, nil
 	}
 	if strings.HasPrefix(s, postFilePrefix) {
 		filename := strings.Split(strings.TrimPrefix(s, postFilePrefix), " ")[0]
 
 		contentType, ok := getHeaderValue(s, contentTypeHeader)
 		if !ok || (contentType != octetStreamType) {
-			return httpResponse{resp: notFound}.format(), nil
+			return httpResponse{resp: notFound}, nil
 		}
 
 		components := strings.Split(s, CRLF)
@@ -147,14 +149,14 @@ func getResponse(conn net.Conn, baseDirectory string) (string, error) {
 
 		err := os.WriteFile(filePath, []byte(content), 0644)
 		if err != nil {
-			return httpResponse{resp: notFound}.format(), nil
+			return httpResponse{resp: notFound}, nil
 		}
 
-		return httpResponse{resp: okPostResponse}.format(), nil
+		return httpResponse{resp: okPostResponse}, nil
 	}
 
 	if !strings.HasPrefix(s, "GET / HTTP/1.1") {
-		return httpResponse{resp: okGetResponse}.format(), nil
+		return httpResponse{resp: okGetResponse}, nil
 	}
 
 	return resp, nil
