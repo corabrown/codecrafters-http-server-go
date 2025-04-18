@@ -31,12 +31,17 @@ func main() {
 		}
 
 		go func() {
-			for {
+			connectionCloseRequestCount := 0 
+			for connectionCloseRequestCount < 2 {
 				resp, err := getResponse(conn, baseDirectory)
 				if err != nil {
 					panic("unable to get a response")
 				}
 				conn.Write([]byte(resp.format()))
+
+				if resp.connection == "close" {
+					connectionCloseRequestCount += 1 
+				}
 			}
 
 			conn.Close()

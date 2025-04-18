@@ -17,6 +17,7 @@ type request struct {
 	userAgent     string
 	encodingTypes []string
 	contentType   string
+	connection    string
 	body          string
 }
 
@@ -66,6 +67,8 @@ func parseRequest(conn net.Conn) (request, error) {
 						req.encodingTypes = append(req.encodingTypes, "gzip")
 					}
 				}
+			case connectionHeader:
+				req.connection = value
 			}
 		}
 	}
@@ -80,6 +83,7 @@ type httpResponse struct {
 	contentType     string
 	contentLength   int
 	contentEncoding string
+	connection      string
 	body            string
 }
 
@@ -89,6 +93,7 @@ func (v httpResponse) format() string {
 		contentTypeHeader:     v.contentType,
 		contentLengthHeader:   strconv.Itoa(v.contentLength),
 		contentEncodingHeader: v.contentEncoding,
+		connectionHeader: v.connection,
 	}
 
 	if v.resp == "" {
@@ -124,6 +129,7 @@ const (
 	contentTypeHeader     string = "Content-Type"
 	contentLengthHeader   string = "Content-Length"
 	contentEncodingHeader string = "Content-Encoding"
+	connectionHeader      string = "Connection"
 
 	userAgentHeader      string = "User-Agent"
 	acceptEncodingHeader string = "Accept-Encoding"
@@ -138,7 +144,7 @@ func getResponse(conn net.Conn, baseDirectory string) (httpResponse, error) {
 
 	req, err := parseRequest(conn)
 	if err != nil {
-		return httpResponse{resp: notFound}, nil
+		return httpResponse{resp: notFound, connection: req.connection}, nil
 	}
 
 	switch req.endpoint {
@@ -188,7 +194,7 @@ func getResponse(conn net.Conn, baseDirectory string) (httpResponse, error) {
 
 		return httpResponse{
 			resp:          okGetResponse,
-			contentType:   octetStreamType, 
+			contentType:   octetStreamType,
 			contentLength: int(fileInfo.Size()),
 			body:          string(content),
 		}, nil
