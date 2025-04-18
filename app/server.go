@@ -11,6 +11,36 @@ import (
 	"strings"
 )
 
+type responseType string
+type endpoint string
+
+const (
+	notFound       responseType = "HTTP/1.1 404 Not Found"
+	okGetResponse  responseType = "HTTP/1.1 200 OK"
+	okPostResponse responseType = "HTTP/1.1 201 Created"
+
+	echoEndpoint      endpoint = "GET /echo/"
+	userAgentEndpoint endpoint = "GET /user-agent"
+	getFileEndpoint   endpoint = "GET /files/"
+	postFileEndpoint  endpoint = "POST /files/"
+	baseEndpoint      endpoint = "GET / "
+
+	contentTypeHeader     string = "Content-Type"
+	contentLengthHeader   string = "Content-Length"
+	contentEncodingHeader string = "Content-Encoding"
+	connectionHeader      string = "Connection"
+
+	userAgentHeader      string = "User-Agent"
+	acceptEncodingHeader string = "Accept-Encoding"
+
+	CRLF string = "\r\n"
+
+	textContentType string = "text/plain"
+	octetStreamType string = "application/octet-stream"
+)
+
+var supportedEndpoints = []endpoint{echoEndpoint, userAgentEndpoint, getFileEndpoint, postFileEndpoint, baseEndpoint}
+
 type request struct {
 	endpoint      endpoint
 	requestTarget string
@@ -38,16 +68,10 @@ func parseRequest(conn net.Conn) (request, error) {
 
 	mainRequest := strings.Split(requestComponents[0], CRLF)
 	requestLine := mainRequest[0]
-	if strings.HasPrefix(requestLine, string(echoEndpoint)) {
-		req.endpoint = echoEndpoint
-	} else if strings.HasPrefix(requestLine, string(userAgentEndpoint)) {
-		req.endpoint = userAgentEndpoint
-	} else if strings.HasPrefix(requestLine, string(getFileEndpoint)) {
-		req.endpoint = getFileEndpoint
-	} else if strings.HasPrefix(requestLine, string(postFileEndpoint)) {
-		req.endpoint = postFileEndpoint
-	} else if strings.HasPrefix(requestLine, string(baseEndpoint)) {
-		req.endpoint = baseEndpoint
+	for _, supportedEndpoint := range supportedEndpoints {
+		if strings.HasPrefix(requestLine, string(supportedEndpoint)) {
+			req.endpoint = supportedEndpoint
+		}
 	}
 	req.requestTarget = strings.Split(strings.TrimPrefix(s, string(req.endpoint)), " ")[0]
 
@@ -112,34 +136,6 @@ func (v httpResponse) format() string {
 	return responseString
 }
 
-type responseType string
-type endpoint string
-
-const (
-	notFound       responseType = "HTTP/1.1 404 Not Found"
-	okGetResponse  responseType = "HTTP/1.1 200 OK"
-	okPostResponse responseType = "HTTP/1.1 201 Created"
-
-	echoEndpoint      endpoint = "GET /echo/"
-	userAgentEndpoint endpoint = "GET /user-agent"
-	getFileEndpoint   endpoint = "GET /files/"
-	postFileEndpoint  endpoint = "POST /files/"
-	baseEndpoint      endpoint = "GET / "
-
-	contentTypeHeader     string = "Content-Type"
-	contentLengthHeader   string = "Content-Length"
-	contentEncodingHeader string = "Content-Encoding"
-	connectionHeader      string = "Connection"
-
-	userAgentHeader      string = "User-Agent"
-	acceptEncodingHeader string = "Accept-Encoding"
-
-	CRLF string = "\r\n"
-
-	textContentType string = "text/plain"
-	octetStreamType string = "application/octet-stream"
-)
-
 func getResponse(conn net.Conn, baseDirectory string) (result httpResponse, err error) {
 
 	req, err := parseRequest(conn)
@@ -151,29 +147,27 @@ func getResponse(conn net.Conn, baseDirectory string) (result httpResponse, err 
 
 	switch req.endpoint {
 	case echoEndpoint:
-		resp := httpResponse{
-			resp:          okGetResponse,
-			contentType:   textContentType,
-			contentLength: len(req.requestTarget),
-			body:          req.requestTarget,
-		}
+		result.resp = okGetResponse
+		result.contentType = textContentType
+		result.contentLength = len(req.requestTarget)
+		result.body = req.requestTarget
 		for _, compressionType := range req.encodingTypes {
 			if compressionType == "gzip" {
 				var buf bytes.Buffer
 				writer := gzip.NewWriter(&buf)
-				if _, err := writer.Write([]byte(resp.body)); err != nil {
+				if _, err := writer.Write([]byte(result.body)); err != nil {
 					result.resp = notFound
 				}
 				if err := writer.Close(); err != nil {
 					result.resp = notFound
 				}
 
-				resp.body = buf.String()
-				resp.contentLength = len(resp.body)
-				resp.contentEncoding = "gzip"
+				result.body = buf.String()
+				result.contentLength = len(result.body)
+				result.contentEncoding = "gzip"
 			}
 		}
-		return resp, nil
+		return result, nil
 	case userAgentEndpoint:
 		result.resp = okGetResponse
 		result.contentType = textContentType
@@ -207,22 +201,18 @@ func getResponse(conn net.Conn, baseDirectory string) (result httpResponse, err 
 			result.resp = notFound
 			return result, nil
 		}
-
 		filePath := filepath.Join(baseDirectory, filename)
-
 		err := os.WriteFile(filePath, []byte(req.body), 0644)
 		if err != nil {
 			result.resp = notFound
 			return result, nil
 		}
-
 		result.resp = okPostResponse
 		return result, nil
 
 	case baseEndpoint:
 		result.resp = okGetResponse
 		return result, nil
-
 	}
 
 	return result, nil
