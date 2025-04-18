@@ -1,6 +1,8 @@
 package main
 
 import (
+	"bytes"
+	"compress/gzip"
 	"flag"
 	"fmt"
 	"net"
@@ -97,22 +99,15 @@ func getResponse(conn net.Conn, baseDirectory string) (httpResponse, error) {
 				if textOnly == "gzip" {
 					resp.contentEncoding = "gzip"
 
-					cmd := exec.Command("gzip", "-c")
-					cmd.Stdin = strings.NewReader(resp.body)
-
-					output, _ := cmd.CombinedOutput()
-
-					var response strings.Builder
-					for i, b := range output {
-						response.WriteString(fmt.Sprintf("%02X", b))
-						if i < len(output)-1 {
-							response.WriteString(" ")
-						}
+					var buf bytes.Buffer 
+					writer := gzip.NewWriter(&buf)
+					_, err := writer.Write([]byte(resp.body))
+					if err != nil {
+						return httpResponse{resp: notFound}, nil 
 					}
-					resp.body = response.String()
-					resp.contentLength = len(output)
-					resp.contentLength = 10
-					resp.contentLength = len(output)
+
+					resp.body = buf.String()
+					resp.contentLength = len(resp.body)
 				}
 			}
 		}
