@@ -31,12 +31,14 @@ func main() {
 		}
 
 		go func() {
-			resp, err := getResponse(conn, baseDirectory)
-			if err != nil {
-				panic("unable to get a response")
+			for {
+				resp, err := getResponse(conn, baseDirectory)
+				if err != nil {
+					panic("unable to get a response")
+				}
+				conn.Write([]byte(resp.format()))
 			}
 
-			conn.Write([]byte(resp.format()))
 			conn.Close()
 		}()
 

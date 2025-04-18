@@ -11,7 +11,6 @@ import (
 	"strings"
 )
 
-
 type request struct {
 	endpoint      endpoint
 	requestTarget string
@@ -70,6 +69,8 @@ func parseRequest(conn net.Conn) (request, error) {
 			}
 		}
 	}
+
+	fmt.Println("PRINTING ENDPOINT ", req.endpoint)
 
 	return req, nil
 }
