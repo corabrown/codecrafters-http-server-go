@@ -31,8 +31,7 @@ func main() {
 		}
 
 		go func() {
-			connectionCloseRequestCount := 0 
-			for connectionCloseRequestCount < 2 {
+			for {
 				resp, err := getResponse(conn, baseDirectory)
 				if err != nil {
 					panic("unable to get a response")
@@ -40,7 +39,7 @@ func main() {
 				conn.Write([]byte(resp.format()))
 
 				if resp.connection == "close" {
-					connectionCloseRequestCount += 1 
+					break 
 				}
 			}
 
