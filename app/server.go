@@ -188,7 +188,7 @@ func getResponse(conn net.Conn, baseDirectory string) (httpResponse, error) {
 
 		return httpResponse{
 			resp:          okGetResponse,
-			contentType:   octetStreamType,
+			contentType:   octetStreamType, 
 			contentLength: int(fileInfo.Size()),
 			body:          string(content),
 		}, nil
