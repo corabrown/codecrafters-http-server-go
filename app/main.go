@@ -1,6 +1,9 @@
 package main
 
 import (
+	"bytes"
+	"compress/gzip"
+	"encoding/hex"
 	"flag"
 	"fmt"
 	"net"
@@ -95,9 +98,18 @@ func getResponse(conn net.Conn, baseDirectory string) (httpResponse, error) {
 				textOnly := strings.ReplaceAll(compressionType, " ", "")
 				if textOnly == "gzip" {
 					resp.contentEncoding = "gzip"
+
+					var buf bytes.Buffer
+					_, err := gzip.NewWriter(&buf).Write([]byte(resp.body))
+					if err != nil {
+						return httpResponse{resp: notFound}, nil
+					}
+
+					hexRepresentation := hex.EncodeToString(buf.Bytes())
+					resp.body = hexRepresentation
+					resp.contentLength = len(hexRepresentation)
 				}
 			}
-
 		}
 		return resp, nil
 	}
