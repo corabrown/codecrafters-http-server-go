@@ -100,8 +100,10 @@ func getResponse(conn net.Conn, baseDirectory string) (httpResponse, error) {
 
 					var buf bytes.Buffer 
 					writer := gzip.NewWriter(&buf)
-					_, err := writer.Write([]byte(resp.body))
-					if err != nil {
+					if _, err := writer.Write([]byte(resp.body)); err != nil {
+						return httpResponse{resp: notFound}, nil 
+					}
+					if err := writer.Close(); err != nil {
 						return httpResponse{resp: notFound}, nil 
 					}
 
