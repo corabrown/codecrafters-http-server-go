@@ -1,13 +1,11 @@
 package main
 
 import (
-	"bytes"
-	"compress/gzip"
-	"encoding/hex"
 	"flag"
 	"fmt"
 	"net"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -99,15 +97,23 @@ func getResponse(conn net.Conn, baseDirectory string) (httpResponse, error) {
 				if textOnly == "gzip" {
 					resp.contentEncoding = "gzip"
 
-					var buf bytes.Buffer
-					_, err := gzip.NewWriter(&buf).Write([]byte(resp.body))
-					if err != nil {
-						return httpResponse{resp: notFound}, nil
-					}
+					cmd := exec.Command("gzip", "-c")
+					cmd.Stdin = strings.NewReader(resp.body)
 
-					hexRepresentation := hex.EncodeToString(buf.Bytes())
-					resp.body = hexRepresentation
-					resp.contentLength = len(hexRepresentation)
+					output, _ := cmd.CombinedOutput()
+					// fmt.Printf("%x\n", output)
+
+					// var response strings.Builder
+					// for i, b := range output {
+					// 	response.WriteString(fmt.Sprintf("%02X", b))
+					// 	if i < len(output)-1 {
+					// 		response.WriteString(" ")
+					// 	}
+					// }
+					// resp.body = response.String()
+					resp.body = fmt.Sprintf("%x", output)
+					// fmt.Println(resp.body)
+					resp.contentLength = len(output)
 				}
 			}
 		}
