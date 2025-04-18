@@ -6,6 +6,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 )
 
@@ -49,19 +50,23 @@ func main() {
 	}
 }
 
+type responseType string
+
 const (
-	notFound       string = "HTTP/1.1 404 Not Found"
-	okGetResponse  string = "HTTP/1.1 200 OK"
-	okPostResponse string = "HTTP/1.1 201 Created"
+	notFound       responseType = "HTTP/1.1 404 Not Found"
+	okGetResponse  responseType = "HTTP/1.1 200 OK"
+	okPostResponse responseType = "HTTP/1.1 201 Created"
 
 	echoPrefix      string = "GET /echo/"
 	userAgentPrefix string = "GET /user-agent"
 	getFilePrefix   string = "GET /files/"
 	postFilePrefix  string = "POST /files/"
 
-	userAgentHeader     string = "User-Agent: "
-	contentTypeHeader   string = "Content-Type: "
-	contentLengthHeader string = "Content-Length: "
+	userAgentHeader       string = "User-Agent"
+	contentTypeHeader     string = "Content-Type"
+	contentLengthHeader   string = "Content-Length"
+	acceptEncodingHeader  string = "Accept-Encoding"
+	contentEncodingHeader string = "Content-Encoding"
 
 	CRLF string = "\r\n"
 
@@ -83,14 +88,28 @@ func getResponse(conn net.Conn, baseDirectory string) (string, error) {
 
 	if strings.HasPrefix(s, echoPrefix) {
 		stringRequest := strings.Split(strings.TrimPrefix(s, echoPrefix), " ")[0]
-		return getOkResponse(textContentType, len(stringRequest), stringRequest), nil
+		resp := httpResponse{
+			resp:          okGetResponse,
+			contentType:   textContentType,
+			contentLength: len(stringRequest),
+			body:          stringRequest,
+		}
+		if contentType, ok := getHeaderValue(s, acceptEncodingHeader); ok && (contentType == "gzip") {
+			resp.contentEncoding = "gzip"
+		}
+		return resp.format(), nil
 	}
 	if strings.HasPrefix(s, userAgentPrefix) {
 		userAgent, ok := getHeaderValue(s, userAgentHeader)
 		if !ok {
-			return getNotOkResponse(), nil
+			return httpResponse{resp: notFound}.format(), nil
 		}
-		return getOkResponse(textContentType, len(userAgent), userAgent), nil
+		return httpResponse{
+			resp:          okGetResponse,
+			contentType:   textContentType,
+			contentLength: len(userAgent),
+			body:          userAgent,
+		}.format(), nil
 	}
 	if strings.HasPrefix(s, getFilePrefix) {
 		filename := strings.Split(strings.TrimPrefix(s, getFilePrefix), " ")[0]
@@ -99,20 +118,26 @@ func getResponse(conn net.Conn, baseDirectory string) (string, error) {
 
 		fileInfo, err := os.Stat(fullPath)
 		if err != nil {
-			return getNotOkResponse(), nil
+			return httpResponse{resp: notFound}.format(), nil
 		}
 		content, err := os.ReadFile(fullPath)
 		if err != nil {
-			return getNotOkResponse(), nil
+			return httpResponse{resp: notFound}.format(), nil
 		}
-		return getOkResponse(octetStreamType, int(fileInfo.Size()), string(content)), nil
+
+		return httpResponse{
+			resp:          okGetResponse,
+			contentType:   octetStreamType,
+			contentLength: int(fileInfo.Size()),
+			body:          string(content),
+		}.format(), nil
 	}
 	if strings.HasPrefix(s, postFilePrefix) {
 		filename := strings.Split(strings.TrimPrefix(s, postFilePrefix), " ")[0]
 
 		contentType, ok := getHeaderValue(s, contentTypeHeader)
 		if !ok || (contentType != octetStreamType) {
-			return getNotOkResponse(), nil
+			return httpResponse{resp: notFound}.format(), nil
 		}
 
 		components := strings.Split(s, CRLF)
@@ -122,41 +147,17 @@ func getResponse(conn net.Conn, baseDirectory string) (string, error) {
 
 		err := os.WriteFile(filePath, []byte(content), 0644)
 		if err != nil {
-			return getNotOkResponse(), nil
+			return httpResponse{resp: notFound}.format(), nil
 		}
 
-		return getOkPostResponse(), nil
+		return httpResponse{resp: okPostResponse}.format(), nil
 	}
 
 	if !strings.HasPrefix(s, "GET / HTTP/1.1") {
-		return getNotOkResponse(), nil
+		return httpResponse{resp: okGetResponse}.format(), nil
 	}
 
 	return resp, nil
-}
-
-func getOkResponse(contentType string, contentLength int, content string) string {
-	return fmt.Sprintf(
-		"%v%v%v%v%v%v%d%v%v%v",
-		okGetResponse,
-		CRLF,
-		contentTypeHeader,
-		contentType,
-		CRLF,
-		contentLengthHeader,
-		contentLength,
-		CRLF,
-		CRLF,
-		content,
-	)
-}
-
-func getOkPostResponse() string {
-	return okPostResponse + CRLF + CRLF
-}
-
-func getNotOkResponse() string {
-	return notFound + CRLF + CRLF
 }
 
 func getHeaderValue(requestString, header string) (value string, ok bool) {
@@ -164,5 +165,34 @@ func getHeaderValue(requestString, header string) (value string, ok bool) {
 	if i == -1 {
 		return "", false
 	}
-	return strings.Split(strings.TrimPrefix(requestString[i:], header), CRLF)[0], true
+	return strings.Split(strings.TrimPrefix(requestString[i:], fmt.Sprintf("%v: ", header)), CRLF)[0], true
+}
+
+type httpResponse struct {
+	resp            responseType
+	contentType     string
+	contentLength   int
+	contentEncoding string
+	body            string
+}
+
+func (v httpResponse) format() string {
+
+	headerMap := map[string]string{
+		contentTypeHeader:     v.contentType,
+		contentLengthHeader:   strconv.Itoa(v.contentLength),
+		contentEncodingHeader: v.contentEncoding,
+	}
+
+	responseString := string(v.resp)
+
+	for k, v := range headerMap {
+		if v != "" {
+			responseString = responseString + CRLF + fmt.Sprintf("%v: %v", k, v)
+		}
+	}
+
+	responseString = responseString + CRLF + CRLF + v.body
+
+	return responseString
 }
