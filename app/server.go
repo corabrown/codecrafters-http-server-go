@@ -217,5 +217,5 @@ func getResponse(conn net.Conn, baseDirectory string) (httpResponse, error) {
 		result.resp = okGetResponse
 	}
 
-	return httpResponse{}, nil
+	return result, nil
 }
